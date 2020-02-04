@@ -22,13 +22,12 @@ class CNN_1D(nn.Module):
         :param output_dim: number classes
         """
         super(CNN_1D, self).__init__()
-        print(config)
 
         time_dim, feat_dim = input_dim  # shape = (T, F)
 
         num_layers = config['num_layers']
         num_filters_per_layer = [config[k] for k in sorted(config.keys()) if k.startswith('num_filters')]
-        num_input_filters = input_dim[1]
+        num_input_filters = feat_dim
         layers = OrderedDict()
 
         for i, num_filters in enumerate(num_filters_per_layer):
@@ -67,44 +66,35 @@ class FCN(nn.Module):
     """
     def __init__(self, input_dim, output_dim, config):
         super(FCN, self).__init__()
-        self.time_dim = input_dim[0]
-        self.feat_dim = input_dim[1]
-        self.output_dim = output_dim
+        time_dim, feat_dim = input_dim
 
-        self.conv1 = nn.Conv1d(self.feat_dim, 32, kernel_size=7, padding=3)
-        self.conv2 = nn.Conv1d(32, 64, kernel_size=5, padding=2)
-        self.conv3 = nn.Conv1d(64, self.output_dim, kernel_size=3, padding=1)
+        num_layers = config['num_layers']
+        num_filters_per_layer = [config[k] for k in sorted(config.keys()) if k.startswith('num_filters')]
+        num_input_filters = feat_dim
+        layers = OrderedDict()
 
-        self.batchnorm1 = nn.BatchNorm1d(32)
-        self.batchnorm2 = nn.BatchNorm1d(64)
-        self.batchnorm3 = nn.BatchNorm1d(self.output_dim)
+        for i, num_filters in enumerate(num_filters_per_layer):
+            # Convolution always preserves original size, and there is no pooling for FCN
+            layers['conv'+str(i+1)] = nn.Conv1d(num_input_filters,
+                                                num_filters,
+                                                kernel_size=config['kernel_size_'+str(i+1)],
+                                                padding=(config['kernel_size_'+str(i+1)] - 1) // 2,
+                                                )
+            layers['batchnorm'+str(i+1)] = nn.BatchNorm1d(num_filters)
+            layers['relu'+str(i+1)] = nn.ReLU()
+            num_input_filters = num_filters
 
-        self.GlobalAvgPooling = nn.AvgPool1d(self.time_dim)
-        self.linear = nn.Linear(self.output_dim, self.output_dim)
+        layers['flatten'] = nn.Flatten(start_dim=1)
+        layers['linear'] = nn.Linear(num_input_filters * time_dim, output_dim)
 
+        self.model = nn.Sequential(layers)
 
     def forward(self, x):
         # X is of shape (N, T, F). Since F is considered as the channel dimension and
         # we convolve over the time dimension, swap the axis of T and F.
-        batch_size = x.size()[0]
         x = x.permute(0, 2, 1)
+        out = self.model(x)
 
-        x = self.conv1(x)
-        x = self.batchnorm1(x)
-        x = F.relu(x)
-
-        x = self.conv2(x)
-        x = self.batchnorm2(x)
-        x = F.relu(x)
-
-        x = self.conv3(x)
-        x = self.batchnorm3(x)
-        x = F.relu(x)
-
-        # Apply GAP such that the size of final convolution = output_dim
-        x = self.GlobalAvgPooling(x)
-        x = x.view(x.size()[0], -1)
-        out = self.linear(x)
 
         return out
 
@@ -114,16 +104,21 @@ class ESN(nn.Module):
     """
     Echo State Network for Time Series Classification
     """
+    # hyp: last_n_outputs, hidden_dim, sparsity, leak_rate
     def __init__(self, input_dim, output_dim, config):
         super(ESN, self).__init__()
-        self.input_dim = input_dim
-        self.output_dim = output_dim
-        self.sparsity = 0.8
-        self.last_n_outputs = 20  # Hyperparameter
+        # Hyperparamters
+        self.hidden_dim = config['hidden_dim']
+        self.sparsity = config['sparsity']
+        self.last_n_outputs = config['last_n_outputs']
+        self.leak_rate = config['leak_rate']
 
-        self.w_in = torch.randn(input_dim, hidden_dim) * 0.2
+        self.time_dim, self.feat_dim = input_dim
+        self.output_dim = output_dim
+
+        self.w_in = torch.randn(self.feat_dim, self.hidden_dim) * 0.2
         # W_r needs sparsity, spectral radius < 1, zero mean standard gaussian distributed non-zero elements.
-        w_r = np.random.randn(hidden_dim, hidden_dim)
+        w_r = np.random.randn(self.hidden_dim, self.hidden_dim)
         w_r = w_r / np.max(w_r)
         # zero out elements
         w_r = np.where(np.random.random(w_r.shape) < self.sparsity, 0, w_r)
@@ -133,14 +128,10 @@ class ESN(nn.Module):
 
         self.w_r = torch.Tensor(w_r)
         # readout layer
-        self.linear1 = nn.Linear(hidden_dim * self.last_n_outputs, output_dim)
+        self.linear1 = nn.Linear(self.hidden_dim * self.last_n_outputs, output_dim)
 
     def forward(self, x):
-        # goes through the resorvoir
-        #print(x.shape)
         batch_size = x.size()[0]
-        time_steps = x.size()[1]  # assumes input is shape (N, T, F)
-        alpha = 0.9 # Leaky unit thing hyperparameter. To be Hyperparametrized
 
         # Add 1 to feature row as done in many ESN papers. Why? don't know...
         #ones = torch.Tensor(batch_size, time_steps, 1)
@@ -151,17 +142,20 @@ class ESN(nn.Module):
         # list to store last n outputs
         out_list = []
 
-        for t in range(time_steps):
-            h_t_hat = F.tanh(torch.add(torch.matmul(x[:, t, :], self.w_in), torch.matmul(h_t, self.w_r)))
+        # Reservoir
+        for t in range(self.time_dim):
+            h_t_hat = torch.tanh(torch.add(torch.matmul(x[:, t, :], self.w_in), torch.matmul(h_t, self.w_r)))
             if t == 0:
                 h_t = h_t_hat
             else:
-                h_t = (1 - alpha) * h_t + alpha * h_t_hat
-            if time_steps - t <= self.last_n_outputs:
+                h_t = (1 - self.leak_rate) * h_t + self.leak_rate * h_t_hat
+            if self.time_dim - t <= self.last_n_outputs:
                 out_list.append(h_t)
 
         # concatenate output list
         out_list = torch.cat(out_list, dim=1)
+
+        # readout layer
         out = self.linear1(out_list)
         return out
 
@@ -170,14 +164,15 @@ class LSTM(nn.Module):
     def __init__(self, input_dim, output_dim, config):
         super(LSTM, self).__init__()
 
-        self.input_dim = input_dim
+        # hp: last_n_outputs, hidden_dim, num_layers
+        self.time_dim, self.feat_dim = input_dim
         self.output_dim = output_dim
-        self.hidden_dim = hidden_dim
-        self.num_layers = num_layers
-        self.last_n_outputs = 20  # Hyperparameter
+        self.hidden_dim = config['hidden_dim']
+        self.num_layers = config['num_layers']
+        self.last_n_outputs = config['last_n_outputs']
 
         # Define LSTM layer
-        self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True)
+        self.lstm = nn.LSTM(self.feat_dim, self.hidden_dim, self.num_layers, batch_first=True)
 
         # Define output layer
         self.linear = nn.Linear(self.hidden_dim * self.last_n_outputs, output_dim)

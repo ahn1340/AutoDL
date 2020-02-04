@@ -1,3 +1,5 @@
+import threading
+import queue
 import librosa
 from sklearn.utils import shuffle
 import json
@@ -57,13 +59,18 @@ def accuracy(solution, prediction):
         prediction / (np.sum(np.abs(prediction), axis=1, keepdims=True) + epsilon)
     return np.sum(solution * prediction_normalized) / solution.shape[0]
 
+def cycle(iterable):
+    while True:
+        for x in iterable:
+            yield x
+
 def get_data_loader(train_X, train_y, batch_size=64):
-    """Return train dataset. Test loader? Not needed as evaluation is done on the whole dataset? """
+    """Return an iterable train_loader. It is cyclic, in case the itration reaches its limit"""
     train_X = torch.Tensor(train_X)
     train_y = torch.Tensor(train_y)
     train = torch.utils.data.TensorDataset(train_X, train_y)
     train_loader = torch.utils.data.DataLoader(train, batch_size, shuffle=True)
-    return train_loader
+    return iter(cycle(train_loader))
 ################################ Dataset Object #################################
 
 
@@ -128,7 +135,7 @@ class Model(object):
         ##########################################################
 
 
-    def train_and_make_prediction(self, pred_queue, time_queue):
+    def train_and_make_prediction(self, pred_queue, time_queue, running):
         """
         Idea: for given budget, do train for 20 steps and call test() to make prediction.
         Repeat this until the budget is exhausted.
@@ -136,7 +143,7 @@ class Model(object):
         """
         start_time = time.time()
 
-        while True:
+        while running.is_set():
 
             self.train()
             Y_pred = self.test()
@@ -153,13 +160,19 @@ class Model(object):
             pred_queue.put(Y_pred)
             time_queue.put(time.time() - start_time)
 
+        # Delete the last prediction and the timestamp, because that is made after the
+        # last while loop, during the process of which the budget is exhausted.
+        pred_queue.get()
+        time_queue.get()
+
+
 
     def train(self):
         """
         model training on train_dataset.
         """
         print("Begin training...")
-        steps_to_train = 20
+        steps_to_train = self.config['steps_to_train']
 
         criterion = nn.BCEWithLogitsLoss()  # For multilabel classification this should be used
         if self.config['optimizer'] == 'SGD':
@@ -181,12 +194,12 @@ class Model(object):
         Trainloop function does the actual training of the model
         3) trains the model with the Tensors for given no of steps.
         '''
-
-        print("Training steps: {}".format(steps))
+        accs = []
+        losses = []
 
         for i in range(steps):
 
-            features, labels = next(iter(self.train_loader))
+            features, labels = next(self.train_loader)
             features = torch.Tensor(features)
             labels = torch.Tensor(labels)
 
@@ -214,14 +227,20 @@ class Model(object):
             preds.append(top_class.cpu().numpy())
             preds = np.concatenate(preds)
             onehot_preds = np.squeeze(np.eye(self.output_dim)[preds.reshape(-1)])
+            train_accuracy = accuracy(labels.numpy(), onehot_preds)
 
             # print train loss and accuracy
-            if i % 5 == 0:
-                print("remaining step: {}".format(steps - i))
-                print("loss: ", float(loss))
-                print("train accuracy: ", accuracy(labels.numpy(), onehot_preds))
+            #if i % 5 == 0:
+            #    print("remaining step: {}".format(steps - i))
+            #    print("loss: ", float(loss))
+            #    print("train accuracy: ", accuracy(labels.numpy(), onehot_preds))
             loss.backward()
             optimizer.step()
+
+            accs.append(train_accuracy)
+            losses.append(loss.detach().numpy())
+
+        print("Train accuracy: {}, loss: {}".format(np.mean(train_accuracy), np.mean(losses)))
 
 
     #PYTORCH
