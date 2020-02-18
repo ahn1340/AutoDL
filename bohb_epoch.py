@@ -367,7 +367,7 @@ def runBOHB(cfg):
 
 
 if __name__ == "__main__":
-    datasets = ['data02']
+    datasets = ['data02', 'data04']
     models = ['ESN','ESN', 'CNN_1D', 'LSTM', 'FCN']
 
     if len(sys.argv) == 3:      # parallel processing
