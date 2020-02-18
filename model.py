@@ -162,6 +162,8 @@ class Model(object):
 
         # Delete the last prediction and the timestamp, because that is made after the
         # last while loop, during the process of which the budget is exhausted.
+        #TODO: need to delete the last one in, not the first one.
+        #TODO: Or, we can use while True, and then only add to queue when running.is_set().
         pred_queue.get()
         time_queue.get()
 
@@ -245,12 +247,7 @@ class Model(object):
 
     #PYTORCH
     def test(self, remaining_time_budget=None):
-        self.test_features  # not a dataloader
-        print("Begin testing...")
-
-        # PYTORCH
         predictions = self.testloop(self.test_features)
-        print("Finished making predictions")
         return predictions
 
 
