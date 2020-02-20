@@ -206,7 +206,7 @@ def get_configuration(dataset, model):
 
     cfg["dataset"] = dataset
     cfg["model"] = model
-    cfg["bohb_min_budget"] = 3  # budget as time (seconds)
+    cfg["bohb_min_budget"] = 20  # budget as time (seconds)
     cfg["bohb_max_budget"] = 1200
     cfg["bohb_iterations"] = 10
     cfg["bohb_eta"] = 3
@@ -313,10 +313,11 @@ class BOHBWorker(Worker):
             print('BOHB ON DATASET: ' + str(cfg["dataset"]))
             print('BOHB WITH MODEL: ' + str(cfg["model"]))
             score = execute_run(cfg=cfg, config=config, budget=budget)
+            print("score: ", score)
             print("exec run done")
         except Exception:
             status = traceback.format_exc()
-            print(status)
+            print("STATUS: ", status)
 
         info[cfg["dataset"]] = score
         info['config'] = str(config)
@@ -367,8 +368,8 @@ def runBOHB(cfg):
 
 
 if __name__ == "__main__":
-    datasets = ['data02', 'data04']
-    models = ['ESN','ESN', 'CNN_1D', 'LSTM', 'FCN']
+    datasets = ['data01', 'data02', 'data03', 'data04', 'data05']
+    models = ['ESN', 'CNN_1D', 'LSTM', 'FCN']
 
     if len(sys.argv) == 3:      # parallel processing
         for arg in sys.argv[1:]:
