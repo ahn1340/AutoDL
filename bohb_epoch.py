@@ -4,15 +4,8 @@ import sys
 sys.path.append(os.path.join(os.getcwd(), 'ingestion'))
 sys.path.append(os.path.join(os.getcwd(), 'scoring'))
 
-# unused #
-import signal
-from contextlib import contextmanager
-import math
-# unused #
-import multiprocessing
 import threading
 import queue
-import torch
 import random
 import traceback
 import numpy as np
@@ -27,11 +20,9 @@ from hpbandster.optimizers import BOHB as BOHB
 from dataset import AutoSpeechDataset
 from score import get_solution, accuracy, is_multiclass, autodl_auc
 from model import Model
-import tensorflow as tf
-from tensorflow.python.keras.preprocessing import sequence
 import logging
 import pickle
-import librosa
+import torch
 
 
 LOGGER = logging.getLogger(__name__)
@@ -373,6 +364,8 @@ if __name__ == "__main__":
     if len(sys.argv) == 3:      # parallel processing
         for arg in sys.argv[1:]:
             print(arg)
+
+        print("Cuda available: ", torch.cuda.is_available())
 
         id = int(sys.argv[1])
         tot = int(sys.argv[2])
