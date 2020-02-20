@@ -206,11 +206,8 @@ class Model(object):
             labels = torch.Tensor(labels)
 
             if torch.cuda.is_available():
-                # No Cuda for now
-                # images = images.float().cuda()
-                # labels = labels.long().cuda()
-                images = features.float()
-                labels = labels.float()
+                images = features.float().cuda()
+                labels = labels.float().cuda()
             else:
                 images = features.float()
                 labels = labels.float()
@@ -231,11 +228,6 @@ class Model(object):
             onehot_preds = np.squeeze(np.eye(self.output_dim)[preds.reshape(-1)])
             train_accuracy = accuracy(labels.numpy(), onehot_preds)
 
-            # print train loss and accuracy
-            #if i % 5 == 0:
-            #    print("remaining step: {}".format(steps - i))
-            #    print("loss: ", float(loss))
-            #    print("train accuracy: ", accuracy(labels.numpy(), onehot_preds))
             loss.backward()
             optimizer.step()
 
@@ -262,9 +254,7 @@ class Model(object):
             test_x = torch.Tensor(test_x)
 
             if torch.cuda.is_available():
-                # no Cuda for now
-                #images = images.float().cuda()
-                test_x = test_x.float()
+                test_x = test_x.float().cuda()
             else:
                 test_x = test_x.float()
 

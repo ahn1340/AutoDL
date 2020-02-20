@@ -313,7 +313,6 @@ class BOHBWorker(Worker):
             print('BOHB ON DATASET: ' + str(cfg["dataset"]))
             print('BOHB WITH MODEL: ' + str(cfg["model"]))
             score = execute_run(cfg=cfg, config=config, budget=budget)
-            print("score: ", score)
             print("exec run done")
         except Exception:
             status = traceback.format_exc()
