@@ -1,0 +1,5 @@
+source activate
+run script
+Device mapping:
+/job:localhost/replica:0/task:0/device:XLA_CPU:0 -> device: XLA_CPU device
+done

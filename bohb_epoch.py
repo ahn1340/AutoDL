@@ -205,7 +205,8 @@ def get_configuration(dataset, model):
     cfg["auc_splits"] = 10  # Unused
 
     #time_series_dataset_dir = "home/repo/autodl/starting_kit/sample_data"
-    time_series_dataset_dir = os.path.join(os.getcwd(), 'sample_data')
+    #time_series_dataset_dir = os.path.join(os.getcwd(), 'sample_data')
+    time_series_dataset_dir = "/home/../../data/aad/AutoDLSpeechDataset/challenge"
     time_series_dataset = os.path.join(time_series_dataset_dir, dataset)
 
     if os.path.isdir(time_series_dataset):
@@ -358,7 +359,21 @@ def runBOHB(cfg):
 
 
 if __name__ == "__main__":
-    datasets = ['data01', 'data02', 'data03', 'data04', 'data05']
+    #datasets = ['data01', 'data02', 'data03', 'data04', 'data05']
+    datasets = ['espeak-starcraft-words',
+                'music_genre',
+                'sick_no_sick',
+                'flickr',
+                'music-speech',
+                'google_audio_set',
+                'number_mnist',
+                'urbansound',
+                'data01',
+                'data02',
+                'data03',
+                'data04',
+                'data05',
+                ]
     models = ['ESN', 'CNN_1D', 'LSTM', 'FCN']
 
     if len(sys.argv) == 3:      # parallel processing

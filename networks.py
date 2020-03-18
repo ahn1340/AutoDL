@@ -116,7 +116,7 @@ class ESN(nn.Module):
         self.time_dim, self.feat_dim = input_dim
         self.output_dim = output_dim
 
-        self.w_in = torch.randn(self.feat_dim, self.hidden_dim) * 0.2
+        self.w_in = torch.randn(self.feat_dim, self.hidden_dim).cuda() * 0.2
         # W_r needs sparsity, spectral radius < 1, zero mean standard gaussian distributed non-zero elements.
         w_r = np.random.randn(self.hidden_dim, self.hidden_dim)
         w_r = w_r / np.max(w_r)
@@ -126,7 +126,7 @@ class ESN(nn.Module):
         max_abs_eigval = np.max(np.abs(np.linalg.eigvals(w_r)))
         w_r = w_r / max_abs_eigval
 
-        self.w_r = torch.Tensor(w_r)
+        self.w_r = torch.Tensor(w_r).cuda()
         # readout layer
         self.linear1 = nn.Linear(self.hidden_dim * self.last_n_outputs, output_dim)
 
@@ -138,7 +138,7 @@ class ESN(nn.Module):
         #x = torch.cat((x, ones), 2)
 
         # initialize empty h(0)
-        h_t = torch.zeros(batch_size, self.hidden_dim)
+        h_t = torch.zeros(batch_size, self.hidden_dim).cuda()
         # list to store last n outputs
         out_list = []
 
@@ -184,8 +184,8 @@ class LSTM(nn.Module):
         # This is what we will initialize hidden states as.
         h0 = torch.zeros(self.num_layers, batch_size, self.hidden_dim)
         c0 = torch.zeros(self.num_layers, batch_size, self.hidden_dim)
-        h0 = Variable(h0)
-        c0 = Variable(c0)
+        h0 = Variable(h0).cuda()
+        c0 = Variable(c0).cuda()
 
         return (h0, c0)
 

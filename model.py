@@ -30,6 +30,8 @@ config.log_device_placement = True  # to log device placement (on which device t
                                     # (nothing gets printed in Jupyter, only if you run it standalone)
 sess = tf.Session(config=config)
 set_session(sess)  # set this TensorFlow session as the default session for Keras
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 """
 This script is used for training the configurable models for BOHB.
 """
@@ -132,6 +134,8 @@ class Model(object):
             self.pytorchmodel = FCN(self.input_dim, self.output_dim, config)
         else:
             raise ValueError('Unknown model: ', + str(cfg['model']))
+
+        self.pytorchmodel.to(device)
         ##########################################################
 
 
@@ -174,6 +178,7 @@ class Model(object):
         model training on train_dataset.
         """
         print("Begin training...")
+        self.pytorchmodel.train()
         steps_to_train = self.config['steps_to_train']
 
         criterion = nn.BCEWithLogitsLoss()  # For multilabel classification this should be used
@@ -213,8 +218,8 @@ class Model(object):
                 labels = labels.float()
             optimizer.zero_grad()
 
-            with open("input_train.txt", "a") as f:
-                f.write(str(labels))
+            #with open("input_train.txt", "a") as f:
+            #    f.write(str(labels))
 
             # model output (log probability)
             log_ps = self.pytorchmodel(images)
@@ -226,19 +231,20 @@ class Model(object):
             preds.append(top_class.cpu().numpy())
             preds = np.concatenate(preds)
             onehot_preds = np.squeeze(np.eye(self.output_dim)[preds.reshape(-1)])
-            train_accuracy = accuracy(labels.numpy(), onehot_preds)
+            train_accuracy = accuracy(labels.cpu().numpy(), onehot_preds)
 
             loss.backward()
             optimizer.step()
 
             accs.append(train_accuracy)
-            losses.append(loss.detach().numpy())
+            losses.append(loss.detach().cpu().numpy())
 
         print("Train accuracy: {}, loss: {}".format(np.mean(train_accuracy), np.mean(losses)))
 
 
     #PYTORCH
     def test(self, remaining_time_budget=None):
+        self.pytorchmodel.eval()
         predictions = self.testloop(self.test_features)
         return predictions
 
