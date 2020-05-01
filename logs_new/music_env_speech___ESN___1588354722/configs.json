@@ -1,0 +1,1 @@
+[[0, 0, 0], {"batch_size": 128, "hidden_dim": 662, "last_n_outputs": 14, "leak_rate": 0.8900320392249287, "lr": 0.02997781876512385, "optimizer": "Adam", "sparsity": 0.950273936336888, "steps_to_train": 99, "weight_decay": 0.018461140476855754}, {"model_based_pick": false}]
