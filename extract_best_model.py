@@ -6,15 +6,15 @@ import matplotlib.pyplot as plt
 import hpbandster.core.result as hpres
 import hpbandster.visualization as hpvis
 
-datasets = [#'espeak-starcraft-words',
+datasets = ['espeak-starcraft-words',
             #'starcraft',
             'music_genre',
             'sick_no_sick',
             #'flickr',
             'music-speech',
-            #'music_env_speech',
+            'music_env_speech_cleaned',
             'google_audio_set',
-            #'number_mnist',
+            'number_mnist',
             'timit_accent',
             'urbansound',
             'env-sound',
@@ -29,6 +29,29 @@ datasets = [#'espeak-starcraft-words',
             # 'data04',
             # 'data05',
             ]
+datasets = [#'espeak-starcraft-words',
+            ##'starcraft',
+            #'music_genre',
+            #'sick_no_sick',
+            ##'flickr',
+            #'music-speech',
+            #'music_env_speech_cleaned',
+            #'google_audio_set',
+            #'number_mnist',
+            #'timit_accent',
+            #'urbansound',
+            #'env-sound',
+            #'acoustic',
+            #'espeak-gender',
+            #'espeak-numbers',
+            #'librispeech',
+            #'spokenlanguage',
+             'data01',  # Test datasets
+             'data02',
+             'data03',
+             'data04',
+             'data05',
+            ]
 
 
 def extract_best_config(dataset):
@@ -40,7 +63,7 @@ def extract_best_config(dataset):
     incumbent_config: configuration object
     """
     models = ['ESN', 'CNN_1D', 'LSTM', 'FCN']
-    result_dir = 'logs_new'
+    result_dir = 'logs_sample_dataset'
 
     # BOHB results for each model&dataset combination
     results = [os.path.join(result_dir, name) for name in os.listdir(result_dir)]
